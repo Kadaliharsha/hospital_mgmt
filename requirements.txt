@@ -1,0 +1,4 @@
+tabulate
+datetime
+pandas
+mysql-connector-python>=8.0
