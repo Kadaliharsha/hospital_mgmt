@@ -357,43 +357,45 @@ class Bill:
             services = cursor.fetchall()
 
             lines = []
-            lines.append("="*70)
-            lines.append("                         HOSPITAL INVOICE")
-            lines.append("="*70)
-            lines.append(f"Bill No.    : {self.bill_id:<15}   Date: {self.billing_date}")
-            lines.append(f"Patient ID  : {self.patient_id:<15}   Name: {patient['name'] if patient else 'N/A'}")
-            lines.append("-"*70)
+            lines.append("=" * 70)
+            lines.append(" " * 25 + "HOSPITAL INVOICE")
+            lines.append("=" * 70)
+            lines.append(f"Bill No.       : {self.bill_id:<15}   Date: {self.billing_date}")
+            lines.append(f"Patient ID     : {self.patient_id:<15}   Name: {patient['name'] if patient else 'N/A'}")
+            lines.append("-" * 70)
+
             if appt:
-                lines.append(f"Doctor      : {appt['doctor_name']} ")
-                lines.append(f"Consultation Charge: ₹{float(appt['consulting_charge']):,.2f}")
+                lines.append(f"Doctor         : {appt['doctor_name']}")
+                lines.append(f"Consultation Charge : ₹{float(appt['consulting_charge']):,.2f}")
             else:
-                lines.append("Doctor      : N/A")
-                lines.append("Consultation Charge: ₹0.00")
-                
-            lines.append("-"*70)
-            lines.append(f"{'Service Name':30} {'Amount':>15}")
-            lines.append("-"*70)
+                lines.append("Doctor         : N/A")
+                lines.append("Consultation Charge : ₹0.00")
+
+            lines.append("-" * 70)
+            lines.append(f"{'Service Name':<50}{'Amount (₹)':>18}")
+            lines.append("-" * 70)
 
             service_total = 0
             if services:
                 for s in services:
-                    lines.append(f"{s['service_name'][:30]:30} {float(s['cost']):>15,.2f}")
+                    lines.append(f"{s['service_name'][:50]:<50}{float(s['cost']):>18,.2f}")
                     service_total += float(s['cost'])
             else:
-                lines.append(f"{'No services billed.':<57}")
+                lines.append("No services billed.".ljust(70))
 
-            lines.append("-"*70)
-            lines.append(f"{'Service Total':>47} : ₹{service_total:,.2f}")
+            lines.append("-" * 70)
             consulting_charge = float(appt['consulting_charge']) if appt else 0.0
-            lines.append(f"{'Consultation Charge':>47} : ₹{consulting_charge:,.2f}")
-            lines.append("-"*70)
+            lines.append(f"{'Service Total':<50}{'₹' + format(service_total, ',.2f'):>18}")
+            lines.append(f"{'Consultation Charge':<50}{'₹' + format(consulting_charge, ',.2f'):>18}")
+            lines.append("-" * 70)
             total = service_total + consulting_charge
-            lines.append(f"{'TOTAL AMOUNT DUE':>47} : ₹{total:,.2f}")
-            lines.append("="*70)
+            lines.append(f"{'TOTAL AMOUNT DUE':<50}{'₹' + format(total, ',.2f'):>18}")
+            lines.append("=" * 70)
             lines.append("Payment should be done within 5 days. For queries, call (234)-145-9081")
-            lines.append("="*70)
-            lines.append("        Thank you for choosing our Hospital!")
-            lines.append("="*70)
+            lines.append("=" * 70)
+            lines.append(" " * 20 + "Thank you for choosing our Hospital!")
+            lines.append("=" * 70)
+
             
             output_dir = os.path.join("output", "invoices")
             os.makedirs(output_dir, exist_ok=True)
