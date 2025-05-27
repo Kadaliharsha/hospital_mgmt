@@ -18,7 +18,7 @@ CREATE TABLE doctors (
     doctor_id VARCHAR(10) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     specialization VARCHAR(100),
-    contact_no VARCHAR(15)
+    contact_no VARCHAR(15) UNIQUE
 );
 
 -- Services Table
@@ -97,16 +97,6 @@ TRUNCATE TABLE temp_service_usage;
 TRUNCATE TABLE billed_services;
 SET FOREIGN_KEY_CHECKS = 1;
 
---- Example Data Manipulation
-insert into patients (patient_id, name, age, gender, admission_date, contact_no) values (1001, 'John', 30,'M','2024-03-05','9876543210');
-insert into patients (patient_id, name, age, gender, admission_date, contact_no) values (1002, 'Roxy', 25,'F','2024-03-08','8897324001');
-insert into doctors (doctor_id, name, specialization, contact_no) values ('D01', 'Dr. Jordan', 'Cardiology','9398433001');
-insert into doctors (doctor_id, name, specialization, contact_no) values ('D02', 'Dr. Claire', 'Neurology','8897730012');
-insert into appointments (appt_id,patient_id, doctor_id, date, diagnosis, consulting_charge) values ('A001','1001','D01','2024-03-05','CT-Scan',300);
-insert into appointments (appt_id,patient_id, doctor_id, date, diagnosis, consulting_charge) values ('A002','1002','D02','2024-03-08','HyperTension',400);
-insert into services (service_id, service_name, cost) values ('S01','X-ray',500), ('S02','Blood Test',300), ('S03','ECG',700);
-
-
 -- Task Discription 8 : Implement data-based filtering 
 select * from appointments where date = curdate();
 select * from appointments where date >= date_sub(curdate(), interval 6 day) and date <= curdate();
@@ -165,4 +155,16 @@ order by
 	num_appointments
 desc;
  
+
+select a.appt_id, p.name as patient_name, d.name as doctor_name, a.date, a.diagnosis, a.consulting_charge from appointments a join patients p on a.patient_id = p.patient_id
+left join doctors d on a.doctor_id = d.doctor_id;
+
+select b.bill_id, p.name as patient_name, bs.service_name, bs.cost, b.total_amount, b.billing_date from billing b join patients p on b.patient_id = p.patient_id join billed_services bs on b.bill_id = bs.bill_id order by b.billing_date desc;
+
+select p.name as patient_name, temp.service_name, temp.cost, temp.created_at from temp_service_usage temp join patients p on temp.patient_id = p.patient_id;
+
+select d.name as doctor_name, count(a.appt_id) as totot_appointments from doctors d left join appointments a on d.doctor_id = a.doctor_id group by d.doctor_id;
+
+
+
 

@@ -5,11 +5,10 @@ def get_connection():
     return mysql.connector.connect(
         host='localhost',
         user='root',
-        password='root@39',
+        password='root@39',                 
         database='HospitalManagementSystem',
     )
 
-# Optional: Test connection when running this file directly
 if __name__ == "__main__":
     try:
         conn = get_connection()

@@ -1,6 +1,7 @@
 from db_config import get_connection
 from datetime import datetime, date
 from person import Person
+from service import Service, ServiceUsageDB, service_usage_menu
 import re
 import mysql.connector
 from mysql.connector import IntegrityError, Error
@@ -26,12 +27,91 @@ class Patient(Person):
         self.age = age
         self.gender = gender
         self.admission_date = admission_date
+
+    @staticmethod
+    def patient_menu():
+        while True:
+            print("\n=== Patient Records ===")
+            print("1. Find Patient Details")
+            print("2. Register New Patient")
+            print("3. Display all Patients")
+            print("4. Modify Patient Record")
+            print("5. Delete Patient Record")
+            print("6. View Patient Services")
+            print("7. Check Patient Admission Days")
+            print("8. Return to Main Menu")
+        
+            choice = input("Choose an option: ")
+
+            if choice == '1':
+                name = input("Enter part or full patient name: ")
+                Patient.search_by_name(name)
+                
+            elif choice == '2':
+                patient_id = auto_patient_id()
+                print(f"Patient ID: {patient_id}")
+                name = input("Enter Name: ")
+                age = input("Enter Age: ")
+                gender = input("Enter Gender: ")
+                admission_date = input("Enter Admission Date (YYYY-MM-DD): ")
+                contact_no = input("Enter Contact Number: ")
+                patient = Patient(patient_id, name, age, gender, admission_date, contact_no)
+                result = patient.add()
+                if result:
+                    print("Patient added successfully.")
+                else:
+                    print("Patient was not added.")
+                    
+            elif choice == '3':
+                Patient.view()
+
+            elif choice == '4':
+                patient_id = input("Enter Patient ID to update: ")
+                existing = Patient.get_by_id(patient_id)
+        
+                if not existing:
+                    print("Patient not found.")
+                else:
+                    print("Leave field blank to keep existing value.\n")
+
+                    name = input(f"Enter Name [{existing.name}]: ") or existing.name
+                    age = input(f"Enter Age [{existing.age}]: ") or existing.age
+                    gender = input(f"Enter Gender (M/F/Other) [{existing.gender}]: ") or existing.gender
+                    admission_date = input(f"Enter Admission Date (YYYY-MM-DD) [{existing.admission_date}]: ") or existing.admission_date
+                    contact_no = input(f"Enter Contact Number [{existing.contact_no}]: ") or existing.contact_no
+
+                    Patient(patient_id, name, age, gender, admission_date, contact_no).update()
+
+            elif choice == '5':
+                patient_id = input("Enter Patient ID to delete: ")
+                Patient.delete(patient_id)
+
+            elif choice == "6":
+                patient_id = input("Enter Patient ID: ")
+                service_usage_menu(patient_id)
+            
+            elif choice == "7":
+                patient_id = input("Enter Patient ID: ")
+                Patient.days_admitted(patient_id)
+
+            elif choice == '8':
+                break
+
+            else:
+                print("Invalid Choice. Please try again.")
     
     # CRUD Operations
     
     def add(self):
-        if not self.name or not re.match(r'^[A-Za-z. ]+$', self.name):              
-            print("Invalid Name.")
+        self.name = self.name.strip()
+        self.contact_no = self.contact_no.strip()
+        self.gender = self.gender.capitalize()
+        
+        if not self.name or not re.match(r'^(?!.*[.]{2,})(?!.*[ ]{2,})[A-Za-z. ]+$', self.name):             
+            print("Invalid Name.Only letters, dots, and spaces are allowed. No multiple dots or spaces.")
+            return False
+        if len(self.name) > 50:
+            print("Name too long. Maximum 50 characters allowed.")
             return False
         try:
             age = int(self.age)
@@ -47,8 +127,14 @@ class Patient(Person):
         if not re.match(r'^\d{4}-\d{2}-\d{2}$', self.admission_date):
             print("Invalid Admission Date. Use YYYY-MM-DD format.")
             return False
-        if not self.contact_no.isdigit() or len(self.contact_no) < 10:
-            print("Invalid Contact Number. Must be at least 10 digits.")
+        if not self.contact_no.isdigit() or len(self.contact_no) != 10 or self.contact_no.startswith('0'):
+            print("Invalid Contact Number. Must be at least 10 digits and not start with 0")
+            return False
+        if self.contact_no == self.contact_no[0] * len(self.contact_no):
+            print("Invalid Contact Number. Cannot have all same digits.")
+            return False
+        if self.contact_no in ['1234567890', '0123456789']:
+            print("Invalid Contact Number. Cannot be a sequential number.")
             return False
         try:
             conn = get_connection()
@@ -71,9 +157,17 @@ class Patient(Person):
             if 'conn' in locals(): conn.close()
 
     def update(self):
-        if not self.name or not re.match(r'^[A-Za-z. ]+$', self.name):
-            print("Invalid Name.")
+        self.name = self.name.strip()
+        self.contact_no = self.contact_no.strip()
+        self.gender = self.gender.capitalize()
+        
+        if not self.name or not re.match(r'^(?!.*[.]{2,})(?!.*[ ]{2,})[A-Za-z. ]+$', self.name):
+            print("Invalid Name.Only letters, dots, and spaces are allowed. No multiple dots or spaces.")
             return False
+        if len(self.name) > 50:
+            print("Name too long. Maximum 50 characters allowed.")
+            return False
+        
         try:
             age = int(self.age)
             if age < 0 or age > 120:
@@ -82,6 +176,7 @@ class Patient(Person):
         except ValueError:
             print("Invalid Age.")
             return False
+        
         if self.gender not in ['M', 'F', 'Other']:
             print("Invalid Gender. Choose from M, F, Other.")
             return False
@@ -93,8 +188,14 @@ class Patient(Person):
         except ValueError:
             print("Invalid Admission Date. Use YYYY-MM-DD format.")
             return False
-        if not self.contact_no.isdigit() or len(self.contact_no) < 10:
-            print("Invalid Contact Number. Must be at least 10 digits.")
+        if not self.contact_no.isdigit() or len(self.contact_no) != 10 or self.contact_no.startswith('0'):
+            print("Invalid Contact Number. Must be at least 10 digits and not start with '0'.")
+            return False
+        if self.contact_no == self.contact_no[0] * len(self.contact_no):
+            print("Invalid Contact Number. Cannot have all same digits.")
+            return False
+        if self.contact_no in ['1234567890', '0123456789']:
+            print("Invalid Contact Number. Cannot be a sequential number.")
             return False
         try:
             conn = get_connection()

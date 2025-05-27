@@ -33,6 +33,124 @@ class Bill:
         self.patient_id = patient_id
         self.billing_date = billing_date or datetime.date.today().strftime("%Y-%m-%d")
 
+    def billing_menu():
+        while True:
+            print("\n=== Billing Records ===")
+            print("1. Create New Bill")
+            print("2. View All Billing Records")
+            print("3. Modify Bill Details")
+            print("4. Delete Bill Entry")
+            print("5. Calculate Total Charges")
+            print("6. Print/Generate Invoice")
+            print("7. Return to Main Menu")
+            
+            choice = input("Select an option: ")
+     
+            if choice == "1":
+                bill_id = auto_bill_id()
+                print(f"Bill ID: {bill_id}")
+                patient_id = input("Enter Patient ID: ")
+                billing_date = input("Enter Billing Date (YYYY-MM-DD) [leave blank for today]: ")
+                if not billing_date.strip():
+                    bill = Bill(bill_id, patient_id)
+                else:
+                    bill = Bill(bill_id, patient_id, billing_date)
+                result = bill.add()
+                if result:
+                    bill.generate_invoice()
+                else:
+                    print("Bill and Invoice not generated.")
+     
+            elif choice == "2":
+                Bill.view()
+     
+            elif choice == "3":
+                bill_id = input("Enter Bill ID to update: ")
+                existing = Bill.get_by_id(bill_id)
+                if not existing:
+                    print("Bill not found.")
+                    return
+
+                print("Leave fields blank to keep current values.")
+
+                patient_id = input(f"Enter Patient ID [{existing['patient_id']}]: ") or existing['patient_id']
+                billing_date = input(f"Enter Billing Date (YYYY-MM-DD) [{existing['billing_date']}]: ") or str(existing['billing_date'])
+
+                bill = Bill(bill_id, patient_id, billing_date)
+                bill.update()
+     
+            elif choice == "4":
+                bill_id = input("Enter Bill ID to delete: ")
+                Bill.delete(bill_id)
+     
+            elif choice == "5":
+                patient_id = input("Enter Patient ID to compute total billing: ")
+                total = calculate_total_charge(patient_id)
+                if total is not None:
+                    print(f"Total bill for patient {patient_id}: {total}")
+     
+            elif choice == "6":
+                print("Generate Invoice Using:")
+                print("1. By Bill ID")
+                print("2. By Patient ID")
+                invoice_choice = input("Select an option: ")
+                if invoice_choice == "1":
+                    bill_id = input("Enter Bill ID to generate invoice: ")
+                    from db_config import get_connection
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT patient_id, billing_date FROM billing WHERE bill_id=%s", (bill_id,))
+                    row = cursor.fetchone()
+                    cursor.close()
+                    conn.close()
+                    if row:
+                        patient_id, billing_date = row
+                        bill = Bill(bill_id, patient_id, billing_date)
+                        bill.generate_invoice()
+                    else:
+                        print("Bill not found.")
+                        
+                elif invoice_choice == "2":
+                    patient_id = input("Enter Patient ID to generate invoice: ")
+                    from db_config import get_connection
+                    conn = get_connection()
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute("SELECT bill_id, billing_date FROM billing WHERE patient_id=%s", (patient_id,))
+                    bills = cursor.fetchall()
+                    if not bills:
+                        print("No bills found for this patient.")
+                    elif len(bills) == 1:
+                        bill_id = bills[0]['bill_id']
+                        billing_date = bills[0]['billing_date']
+                        bill = Bill(bill_id, patient_id, billing_date)
+                        bill.generate_invoice()
+                    else:
+                        print("Multiple bills found for this patient:")
+                        for idx, b in enumerate(bills):
+                            print(f"{idx+1}. Bill ID: {b['bill_id']}, Date: {b['billing_date']}")
+                        user_input = input("Select bill number to generate invoice: ").strip()
+                        if user_input.isdigit():
+                            selection = int(user_input) - 1
+                            if 0 <= selection < len(bills):
+                                selected_bill = bills[selection]
+                                bill = Bill(selected_bill['bill_id'], patient_id, selected_bill['billing_date'])
+                                bill.generate_invoice()
+                                return
+                            else:
+                                print("Invalid selection.")
+                        else:
+                            print("Invalid input. Please enter a number.")
+                    cursor.close()
+                    conn.close()
+                else:
+                    print("Invalid option for invoice generation.")
+     
+            elif choice == "7":
+                break
+     
+            else:
+                print("Invalid Choice. Please try again.")
+
     def add(self):
         import datetime
         if not self.patient_id:
@@ -51,7 +169,7 @@ class Bill:
             return False
 
 
-        total_amount = sum(float(s[2]) for s in services)  # s[2] is cost
+        total_amount = sum(float(s[2]) for s in services)  
 
         try:
             conn = get_connection()
@@ -79,6 +197,11 @@ class Bill:
             conn.commit()
             print(f"Bill added successfully. Total amount: {total_amount}")
             print("Billed services recorded.")
+            try:
+                ServiceUsageDB.clear_services_for_patient(self.patient_id)
+            except Exception as e:
+                print("Error clearing temp service usage:", e)
+
             return True
         except Error as e:
             print("Database error while adding bill:", e)
@@ -114,7 +237,7 @@ class Bill:
             print("No services to bill for this patient.")
             return False
 
-        total_amount = sum(float(s[2]) for s in services)  # s[2] is cost
+        total_amount = sum(float(s[2]) for s in services)
 
         try:
             conn = get_connection()
@@ -234,22 +357,22 @@ class Bill:
             services = cursor.fetchall()
 
             lines = []
-            lines.append("="*60)
-            lines.append("                   HOSPITAL INVOICE")
-            lines.append("="*60)
+            lines.append("="*70)
+            lines.append("                         HOSPITAL INVOICE")
+            lines.append("="*70)
             lines.append(f"Bill No.    : {self.bill_id:<15}   Date: {self.billing_date}")
             lines.append(f"Patient ID  : {self.patient_id:<15}   Name: {patient['name'] if patient else 'N/A'}")
-            lines.append("-"*60)
+            lines.append("-"*70)
             if appt:
-                lines.append(f"Doctor      : {appt['doctor_name']} ({appt['specialization']})")
+                lines.append(f"Doctor      : {appt['doctor_name']} ")
                 lines.append(f"Consultation Charge: ₹{float(appt['consulting_charge']):,.2f}")
             else:
                 lines.append("Doctor      : N/A")
                 lines.append("Consultation Charge: ₹0.00")
                 
-            lines.append("-"*60)
+            lines.append("-"*70)
             lines.append(f"{'Service Name':30} {'Amount':>15}")
-            lines.append("-"*60)
+            lines.append("-"*70)
 
             service_total = 0
             if services:
@@ -259,18 +382,18 @@ class Bill:
             else:
                 lines.append(f"{'No services billed.':<57}")
 
-            lines.append("-"*60)
+            lines.append("-"*70)
             lines.append(f"{'Service Total':>47} : ₹{service_total:,.2f}")
             consulting_charge = float(appt['consulting_charge']) if appt else 0.0
             lines.append(f"{'Consultation Charge':>47} : ₹{consulting_charge:,.2f}")
-            lines.append("-"*60)
+            lines.append("-"*70)
             total = service_total + consulting_charge
             lines.append(f"{'TOTAL AMOUNT DUE':>47} : ₹{total:,.2f}")
-            lines.append("="*60)
-            lines.append("Payment should be done within 5 days. For queries, call (123) 456-7890")
-            lines.append("="*60)
+            lines.append("="*70)
+            lines.append("Payment should be done within 5 days. For queries, call (234)-145-9081")
+            lines.append("="*70)
             lines.append("        Thank you for choosing our Hospital!")
-            lines.append("="*60)
+            lines.append("="*70)
             
             output_dir = os.path.join("output", "invoices")
             os.makedirs(output_dir, exist_ok=True)

@@ -26,6 +26,70 @@ class Appointment:
         self.diagnosis = diagnosis
         self.consulting_charge = consulting_charge
 
+    def appointment_menu():
+        while True:
+            print("\n=== Appointment Records ===")
+            print("1. Schedule New Appointment")
+            print("2. View All Appointments")
+            print("3. Modify Appointment Details")
+            print("4. Cancel Appointment")
+            print("5. Search/Filter Appointments")
+            print("6. Calculate Days Between Patient Appointments")
+            print("7. Return to Main Menu")
+            
+            choice = input("Select an option: ")
+
+            if choice == '1':
+                appt_id = auto_appt_id()
+                print(f"Registered Appointment ID: {appt_id}")
+                patient_id = input("Enter Patient ID: ")
+                doctor_id = input("Enter Doctor ID: ")
+                date = input("Enter Appointment Date (YYYY-MM-DD): ")
+                diagnosis = input("Enter Diagnosis: ")
+                consulting_charge = input("Enter Consulting Charge: ")
+                appointment = Appointment(appt_id, patient_id, doctor_id, date, diagnosis, consulting_charge)
+                result = appointment.add()
+                if result:
+                    print("Appointment added successfully.")
+                else:
+                    print("Appointment was not added.")
+                    
+            elif choice == '2':
+                Appointment.view()
+
+            elif choice == '3':
+                appt_id = input("Enter Appointment ID to update: ")
+                existing = Appointment.get_by_id(appt_id)
+                if not existing:
+                    print("Appointment not found.")
+                    continue
+
+                print("Leave input blank to keep current value.")
+
+                patient_id = input(f"Enter Patient ID [{existing['patient_id']}]: ") or existing['patient_id']
+                doctor_id = input(f"Enter Doctor ID [{existing['doctor_id']}]: ") or existing['doctor_id']
+                date = input(f"Enter Appointment Date (YYYY-MM-DD) [{existing['date']}]: ") or str(existing['date'])
+                diagnosis = input(f"Enter Diagnosis [{existing['diagnosis']}]: ") or existing['diagnosis']
+                consulting_charge = input(f"Enter Consulting Charge [{existing['consulting_charge']}]: ") or existing['consulting_charge']
+
+                Appointment(appt_id, patient_id, doctor_id, date, diagnosis, consulting_charge).update()
+
+            elif choice == '4':
+                appt_id = input("Enter Appointment ID to delete: ")
+                Appointment.delete(appt_id)
+
+            elif choice == '5':
+                Appointment.filter_appointments()
+
+            elif choice == '6':
+                patient_id = input("Enter Patient ID: ")
+                Appointment.days_between_appointments(patient_id)
+                
+            elif choice == "7":
+                break
+            else:
+                print("Invalid Choice. Please try again.")
+
     def add(self):
         if not self.patient_id or not str(self.patient_id).isdigit():
             print("Invalid Patient ID.")
